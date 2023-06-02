@@ -1,7 +1,10 @@
-import { useReducer, useState } from "react";
+import { createContext, useReducer, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import "./App.css";
-
+import Filter from "./Filter";
+import TodoList from "./TodoList";
+import AddTodo from "./AddTodo";
+export const TodoContext = createContext(null);
 const initialTodos = [
     {
         id: uuidv4(),
@@ -21,46 +24,6 @@ const initialTodos = [
 ];
 
 const App = () => {
-    const [task, setTask] = useState("");
-    const [todos, setTodos] = useState(initialTodos);
-
-    const handleChangeInput = (event) => {
-        setTask(event.target.value);
-    };
-
-    const handleSubmit = (event) => {
-        if (task) {
-            // add new todo item
-            setTodos(todos.concat({ id: uuidv4(), task, complete: false }));
-        }
-
-        setTask("");
-
-        event.preventDefault();
-    };
-
-    const handleChangeCheckbox = (id) => {
-        setTodos(
-            todos.map((todo) => {
-                if (todo.id === id) {
-                    return { ...todo, complete: !todo.complete };
-                } else {
-                    return todo;
-                }
-            })
-        );
-    };
-
-    const handleShowAll = () => {
-        dispatchFilter({ type: "SHOW_ALL" });
-    };
-    const handleShowComplete = () => {
-        dispatchFilter({ type: "SHOW_COMPLETE" });
-    };
-    const handleShowIncomplete = () => {
-        dispatchFilter({ type: "SHOW_INCOMPLETE" });
-    };
-
     const filterReducer = (state, action) => {
         switch (action.type) {
             case "SHOW_ALL":
@@ -73,7 +36,38 @@ const App = () => {
                 throw new Error();
         }
     };
+
+    const todoReducer = (state, action) => {
+        switch (action.type) {
+            case "DO_TODO":
+                return state.map((todo) => {
+                    if (todo.id === action.id) {
+                        return { ...todo, complete: true };
+                    } else {
+                        return todo;
+                    }
+                });
+            case "UNDO_TODO":
+                return state.map((todo) => {
+                    if (todo.id === action.id) {
+                        return { ...todo, complete: false };
+                    } else {
+                        return todo;
+                    }
+                });
+            case "ADD_TODO":
+                return state.concat({
+                    task: action.task,
+                    id: action.id,
+                    complete: false,
+                });
+            default:
+                throw new Error();
+        }
+    };
+
     const [filter, dispatchFilter] = useReducer(filterReducer, "ALL");
+    const [todos, dispatchTodos] = useReducer(todoReducer, initialTodos);
 
     const filteredTodos = todos.filter((todo) => {
         if (filter === "ALL") {
@@ -89,35 +83,11 @@ const App = () => {
     });
 
     return (
-        <div>
-            <div>
-                <button type="button" onClick={handleShowAll}>
-                    Show All
-                </button>
-                <button type="button" onClick={handleShowComplete}>
-                    Show Complete
-                </button>
-                <button type="button" onClick={handleShowIncomplete}>
-                    Show Incomplete
-                </button>
-            </div>
-            <ul>
-                {filteredTodos.map((todo) => (
-                    <li key={todo.id}>
-                        <label>{todo.task}</label>
-                        <input
-                            type="checkbox"
-                            checked={todo.complete}
-                            onChange={() => handleChangeCheckbox(todo.id)}
-                        />
-                    </li>
-                ))}
-            </ul>
-            <form onSubmit={handleSubmit}>
-                <input type="text" value={task} onChange={handleChangeInput} />
-                <button type="submit">Add Todo</button>
-            </form>
-        </div>
+        <TodoContext.Provider value={dispatchTodos}>
+            <Filter dispatch={dispatchFilter} />
+            <TodoList todos={filteredTodos} />
+            <AddTodo />
+        </TodoContext.Provider>
     );
 };
 
